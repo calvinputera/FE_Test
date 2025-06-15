@@ -1,29 +1,11 @@
 import React, { useState, useEffect } from "react";
 import MainLayout from "../../layouts/MainLayout";
-import {
-  Box,
-  Paper,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
-  TablePagination,
-  TextField,
-  Button,
-  IconButton,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
-  Autocomplete,
-  Snackbar,
-  Alert,
-} from "@mui/material";
-import { LuPencil, LuTrash2 } from "react-icons/lu";
-import axios, { AxiosError } from "axios";
+import { Box, TextField, Button, Snackbar, Alert } from "@mui/material";
+import axios from "axios";
 import type { GerbangsI } from "../../types/gerbangs";
+import GerbangTable from "./components/GerbangTable";
+import GerbangDialog from "./components/GerbangDialog";
+import DeleteConfirmationDialog from "./components/DeleteConfirmationDialog";
 
 const Gerbang = () => {
   const [gerbangs, setGerbangs] = useState<GerbangsI[]>([]);
@@ -170,12 +152,11 @@ const Gerbang = () => {
       }
       fetchGerbangs();
       handleCloseDialog();
-    } catch (error: AxiosError) {
+    } catch (error: unknown) {
+      console.error("Error submitting gerbang:", error);
       setSnackbar({
         open: true,
-        message:
-          error.response?.data?.message ||
-          "Terjadi kesalahan saat menyimpan gerbang",
+        message: "Terjadi kesalahan saat menyimpan gerbang",
         severity: "error",
       });
     }
@@ -200,12 +181,11 @@ const Gerbang = () => {
         fetchGerbangs();
         setOpenDeleteDialog(false);
         setDeleteItem(null);
-      } catch (error: AxiosError) {
+      } catch (error: unknown) {
+        console.error("Error deleting gerbang:", error);
         setSnackbar({
           open: true,
-          message:
-            error.response?.data?.message ||
-            "Terjadi kesalahan saat menghapus gerbang",
+          message: "Terjadi kesalahan saat menghapus gerbang",
           severity: "error",
         });
       }
@@ -259,66 +239,15 @@ const Gerbang = () => {
           </Button>
         </Box>
 
-        <TableContainer component={Paper}>
-          <Table>
-            <TableHead>
-              <TableRow>
-                <TableCell>ID</TableCell>
-                <TableCell>ID Cabang</TableCell>
-                <TableCell>Nama Gerbang</TableCell>
-                <TableCell>Nama Cabang</TableCell>
-                <TableCell></TableCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {filteredGerbangs
-                .slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
-                .map((gerbang, index: number) => (
-                  <TableRow key={index}>
-                    <TableCell>{gerbang.id}</TableCell>
-                    <TableCell>{gerbang.IdCabang}</TableCell>
-                    <TableCell>{gerbang.NamaGerbang}</TableCell>
-                    <TableCell>{gerbang.NamaCabang}</TableCell>
-                    <TableCell>
-                      <IconButton
-                        onClick={() => handleOpenDialog(gerbang)}
-                        sx={{
-                          "&:focus": {
-                            outline: "none",
-                            border: "none",
-                          },
-                        }}
-                      >
-                        <LuPencil style={{ color: "#1976d2" }} />
-                      </IconButton>
-                      <IconButton
-                        onClick={() =>
-                          handleDelete(gerbang.id, gerbang.IdCabang)
-                        }
-                        sx={{
-                          "&:focus": {
-                            outline: "none",
-                            border: "none",
-                          },
-                        }}
-                      >
-                        <LuTrash2 style={{ color: "#d32f2f" }} />
-                      </IconButton>
-                    </TableCell>
-                  </TableRow>
-                ))}
-            </TableBody>
-          </Table>
-          <TablePagination
-            rowsPerPageOptions={[5, 10, 25]}
-            component="div"
-            count={filteredGerbangs.length}
-            rowsPerPage={rowsPerPage}
-            page={page}
-            onPageChange={handleChangePage}
-            onRowsPerPageChange={handleChangeRowsPerPage}
-          />
-        </TableContainer>
+        <GerbangTable
+          gerbangs={filteredGerbangs}
+          page={page}
+          rowsPerPage={rowsPerPage}
+          onPageChange={handleChangePage}
+          onRowsPerPageChange={handleChangeRowsPerPage}
+          onEdit={handleOpenDialog}
+          onDelete={handleDelete}
+        />
 
         <Snackbar
           open={snackbar.open}
@@ -335,135 +264,22 @@ const Gerbang = () => {
           </Alert>
         </Snackbar>
 
-        {/* Delete Confirmation Dialog */}
-        <Dialog
+        <DeleteConfirmationDialog
           open={openDeleteDialog}
           onClose={handleCloseDeleteDialog}
-          aria-labelledby="delete-dialog-title"
-          // maxWidth="sm"
-          // fullWidth
-        >
-          <DialogTitle id="delete-dialog-title">Konfirmasi Hapus</DialogTitle>
-          <DialogContent>
-            <Box sx={{ pt: 1 }}>
-              Apakah Anda yakin ingin menghapus gerbang ini?
-            </Box>
-          </DialogContent>
-          <DialogActions>
-            <Button
-              onClick={handleCloseDeleteDialog}
-              sx={{
-                "&:focus": {
-                  outline: "none",
-                  border: "none",
-                },
-              }}
-            >
-              Batal
-            </Button>
-            <Button
-              onClick={handleConfirmDelete}
-              color="error"
-              variant="contained"
-              sx={{
-                "&:focus": {
-                  outline: "none",
-                  border: "none",
-                },
-              }}
-            >
-              Hapus
-            </Button>
-          </DialogActions>
-        </Dialog>
+          onConfirm={handleConfirmDelete}
+        />
 
-        <Dialog
+        <GerbangDialog
           open={openDialog}
+          editingGerbang={editingGerbang}
+          formData={formData}
+          cabangOptions={cabangOptions}
           onClose={handleCloseDialog}
-          maxWidth="sm"
-          fullWidth
-        >
-          <DialogTitle>
-            {editingGerbang ? "Edit Gerbang" : "Tambah Gerbang"}
-          </DialogTitle>
-          <DialogContent>
-            <Box
-              sx={{ display: "flex", flexDirection: "column", gap: 2, pt: 2 }}
-            >
-              <TextField
-                name="id"
-                label="ID"
-                value={formData.id}
-                onChange={handleInputChange}
-                disabled={!!editingGerbang}
-                inputProps={{ inputMode: "numeric", pattern: "[0-9]*" }}
-                sx={{
-                  "& input[type=number]": { "-moz-appearance": "textfield" },
-                  "& input[type=number]::-webkit-outer-spin-button, & input[type=number]::-webkit-inner-spin-button":
-                    { "-webkit-appearance": "none", margin: 0 },
-                }}
-              />
-              <Autocomplete
-                options={cabangOptions}
-                getOptionLabel={(option) => `${option.id} - ${option.nama}`}
-                value={
-                  cabangOptions.find(
-                    (option) => option.id === formData.IdCabang
-                  ) || null
-                }
-                onChange={handleCabangChange}
-                renderInput={(params) => (
-                  <TextField
-                    {...params}
-                    label="ID Cabang"
-                    inputProps={{
-                      ...params.inputProps,
-                      inputMode: "numeric",
-                      pattern: "[0-9]*",
-                    }}
-                  />
-                )}
-              />
-              <TextField
-                name="NamaGerbang"
-                label="Nama Gerbang"
-                value={formData.NamaGerbang}
-                onChange={handleInputChange}
-              />
-              <TextField
-                name="NamaCabang"
-                label="Nama Cabang"
-                value={formData.NamaCabang}
-                disabled
-              />
-            </Box>
-          </DialogContent>
-          <DialogActions>
-            <Button
-              onClick={handleCloseDialog}
-              sx={{
-                "&:focus": {
-                  outline: "none",
-                  border: "none",
-                },
-              }}
-            >
-              Batal
-            </Button>
-            <Button
-              onClick={handleSubmit}
-              variant="contained"
-              sx={{
-                "&:focus": {
-                  outline: "none",
-                  border: "none",
-                },
-              }}
-            >
-              Simpan
-            </Button>
-          </DialogActions>
-        </Dialog>
+          onSubmit={handleSubmit}
+          onInputChange={handleInputChange}
+          onCabangChange={handleCabangChange}
+        />
       </Box>
     </MainLayout>
   );
